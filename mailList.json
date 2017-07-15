@@ -1,0 +1,11 @@
+{
+    "groups": [
+        {
+            "name": "jobcrawler",
+            "description": "People to be notified about jobs.",
+            "members": [
+                "example@example.com"
+            ]
+        }
+    ]
+}
