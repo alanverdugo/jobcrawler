@@ -1,0 +1,20 @@
+{
+    "request": {
+        "publisher_ID": "XXXXXXXXXXXXXXXXXXXXXXX",
+        "output_format": "json",
+        "limit": "10",
+        "from_age": "",
+        "highlight": "false",
+        "sort": "",
+        "radius": "",
+        "site_type": "",
+        "job_type": "fulltime",
+        "start": "",
+        "duplicate_filter": "1",
+        "lat_long": "1",
+        "channel": "",
+        "user_IP": "1.2.3.4",
+        "user_agent": "Mozilla/%2F4.0(Firefox)",
+        "version": "2"
+    }
+}
