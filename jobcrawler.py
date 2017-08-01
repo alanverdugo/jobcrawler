@@ -110,6 +110,101 @@ def get_args(argv):
     main(args.query, args.country_code, args.location)
 
 
+class _Settings(object):
+    '''
+        I've named the class with a single leading underscore (just like the 
+        two instance attributes that underlie the read-only properties) to 
+        suggest that it's not meant to be used from "outside" the module -- 
+        only the settings object is supposed to be.
+        get properties as "settings.publisher_ID", etc
+        set properties like "settings = _Settings(<publisher_ID_value>, <etc>)"
+        https://stackoverflow.com/questions/3640700/alternative-to-passing-global-variables-around-to-classes-and-functions
+    '''
+    @property
+    def publisher_ID(self): return self._publisher_ID
+    @property
+    def output_format(self): return self._output_format
+    @property
+    def limit(self): return self._limit
+    @property
+    def from_age(self): return self._from_age
+    @property
+    def highlight(self): return self._highlight
+    @property
+    def sort(self): return self._sort
+    @property
+    def radius(self): return self._radius
+    @property
+    def site_type(self): return self._site_type
+    @property
+    def job_type(self): return self._job_type
+    @property
+    def start(self): return self._start
+    @property
+    def duplicate_filter(self): return self._duplicate_filter
+    @property
+    def lat_long(self): return self._lat_long
+    @property
+    def channel(self): return self._channel
+    @property
+    def user_IP(self): return self._user_IP
+    @property
+    def user_agent(self): return self._user_agent
+    @property
+    def version(self): return self._version
+    def __init__(self, publisher_ID, output_format, limit, from_age, 
+        highlight, sort, radius, site_type, job_type, start, duplicate_filter,
+        lat_long, channel, user_IP, user_agent, version):
+        self._publisher_ID = publisher_ID
+        self._output_format = output_format
+        self._limit = limit
+        self._from_age = from_age
+        self._highlight = highlight
+        self._sort = sort
+        self._radius = radius
+        self._site_type = site_type
+        self._job_type = job_type
+        self._start = start
+        self._duplicate_filter = duplicate_filter
+        self._lat_long = lat_long
+        self._channel = channel
+        self._user_IP = user_IP
+        self._user_agent = user_agent
+        self._version = version
+
+
+def read_config():
+    '''
+        This function will read the configuration values from config.json
+        and assign the values to a "settings" object.
+    '''
+    try:
+        config = json.load(open(config_file, "r+"))
+
+        request_config = config["request"]
+
+        publisher_ID = request_config["publisher_ID"]
+        output_format = request_config["output_format"]
+        limit = request_config["limit"]
+        from_age = request_config["from_age"]
+        highlight = request_config["highlight"]
+        sort = request_config["sort"]
+        radius = request_config["radius"]
+        site_type = request_config["site_type"]
+        job_type = request_config["job_type"]
+        start = request_config["start"]
+        duplicate_filter = request_config["duplicate_filter"]
+        lat_long = request_config["lat_long"]
+        channel = request_config["channel"]
+        user_IP = request_config["user_IP"]
+        user_agent = request_config["user_agent"]
+        version = request_config["version"]
+
+    except Exception as exception:
+        log.error("Cannot read configuration file. {0}".format(exception))
+        sys.exit(1)
+
+
 def get_job_summary(url):
     '''
         This function will access the URL from each job result in the 
@@ -157,46 +252,7 @@ def main(query, country_code, location):
     # Arguments for the API call,
     # (refer to https://ads.indeed.com/jobroll/xmlfeed)
     # TODO: Read all this from a config file.
-    publisher_ID = "XXXXXXXXXXXXXXXXXXXXXXX"
-
-    # "xml" or "json". If omitted or invalid, XML is used.
-    output_format = "json"
-
-    # TODO (Alan): Change the limit to something a lot larger than 10.
-    # Max results returned per query. Default is 10 
-    limit = "10"
-    
-    from_age = ""
-    
-    highlight = "false"
-    
-    sort = ""
-
-    # Distance from search location ("as the crow flies"). Default is 25.
-    radius = ""
-    
-    # Site type. To show only jobs from job boards use "jobsite". 
-    # For jobs from direct employer websites use "employer".
-    site_type = ""
-    
-    job_type = "fulltime"
-
-    # Start results at this result number, beginning with 0. Default is 0.
-    start = ""
-
-    # Filter duplicate results. 0 turns off duplicate job filtering.
-    # Default is 1.
-    duplicate_filter = "1"
-
-    lat_long = "1"
-
-    channel = ""
-
-    user_IP = "1.2.3.4"
-
-    user_agent = "Mozilla/%2F4.0(Firefox)"
-
-    version = "2"
+    read_config()
 
     # Concatenate the provided values to form the request URL.
     # TODO: Change the string concatenation into a list,
