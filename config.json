@@ -1,6 +1,7 @@
 {
     "request": {
-        "publisher_ID": "XXXXXXXXXXXXXXXXXXXXXXX",
+        "API_URL": "http://api.indeed.com/ads/apisearch?",
+        "publisher_ID": "XXXXXXXXXXXXXXXXXXXXXXXXXX",
         "output_format": "json",
         "limit": "10",
         "from_age": "",
@@ -15,6 +16,7 @@
         "channel": "",
         "user_IP": "1.2.3.4",
         "user_agent": "Mozilla/%2F4.0(Firefox)",
-        "version": "2"
+        "version": "2",
+        "headers": "{'content-type': 'application/json'}"
     }
 }

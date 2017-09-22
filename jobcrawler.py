@@ -1,7 +1,5 @@
 #!/usr/bin/python
 """
- Copyright (C) Alan Verdugo.
-
  Description:
     This program will monitor the indeed.com API in search of interesting 
     jobs postings.
@@ -39,6 +37,10 @@
                             Added the get_job_summary function.
     Alan        2016-07-24  Added os module for handling paths and files.
     Alan        2017-07-14  Did some cleanup.
+    Alan        2017-09-22  Major changes.
+                            Added the analyze_most_common_words function.
+                            Removed save_results.
+                            Fixed the Settings class.
 """
 
 import os
@@ -61,16 +63,17 @@ import requests
 # To get arguments from CLI.
 import argparse
 
-# Some email modules we'll need.
+# Some email modules we will need.
 from email.mime.text import MIMEText
 
+# For getting data from HTML pages.
 from bs4 import BeautifulSoup
 
+# For text analysis.
+from collections import Counter
 
-# TODO: Change this to read from config.json
-headers = {'content-type': 'application/json'}
+
 home_dir = os.path.dirname(os.path.abspath(__file__))
-output_file = os.path.join(home_dir, "results.json")
 
 config_file = os.path.join(home_dir, "config.json")
 
@@ -79,14 +82,76 @@ log = logging.getLogger("jobcrawler")
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 log.setLevel(logging.INFO)
 
+
+## Indeed.com API call examples:
 # Simple search
-# http://api.indeed.com/ads/apisearch?publisher=XXXXXXXXXXXXXXXXXXXXXXX&q=google&l=austin%2C+tx&sort=&radius=&st=&jt=&start=&limit=100&fromage=&filter=&latlong=1&co=us&chnl=&userip=1.2.3.4&useragent=Mozilla/%2F4.0(Firefox)&v=2&format=json
+# http://api.indeed.com/ads/apisearch?publisher=XXXXXXXXXXXXXXXXXXXXXXX
+#   &q=google
+#   &l=austin%2C+tx
+#   &sort=
+#   &radius=
+#   &st=
+#   &jt=
+#   &start=
+#   &limit=100
+#   &fromage=
+#   &filter=
+#   &latlong=1
+#   &co=us
+#   &chnl=
+#   &userip=1.2.3.4
+#   &useragent=Mozilla/%2F4.0(Firefox)
+#   &v=2&format=json
 
 # All software engineer jobs from Google in the US
-#http://api.indeed.com/ads/apisearch?publisher=XXXXXXXXXXXXXXXXXXXXXXX&q=software+engineer+company:google&l=&sort=&highlight=false&radius=&st=&jt=&start=&limit=100&fromage=&filter=&latlong=1&co=us&chnl=&userip=1.2.3.4&useragent=Mozilla/%2F4.0(Firefox)&v=2&format=json
+# http://api.indeed.com/ads/apisearch?publisher=XXXXXXXXXXXXXXXXXXXXXXX
+#   &q=software+engineer+company:google
+#   &l=&sort=
+#   &highlight=false
+#   &radius=
+#   &st=
+#   &jt=
+#   &start=
+#   &limit=100
+#   &fromage=
+#   &filter=
+#   &latlong=1
+#   &co=us
+#   &chnl=
+#   &userip=1.2.3.4
+#   &useragent=Mozilla/%2F4.0(Firefox)
+#   &v=2&format=json
 
 # All software engineer jobs from Google in Japan
-#http://api.indeed.com/ads/apisearch?publisher=XXXXXXXXXXXXXXXXXXXXXXX&q=software+engineer+company:google&l=&sort=&highlight=false&radius=&st=&jt=&start=&limit=100&fromage=&filter=&latlong=1&co=jp&chnl=&userip=1.2.3.4&useragent=Mozilla/%2F4.0(Firefox)&v=2&format=json
+# http://api.indeed.com/ads/apisearch?publisher=XXXXXXXXXXXXXXXXXXXXXXX
+#   &q=software+engineer+company:google
+#   &l=&sort=
+#   &highlight=false
+#   &radius=
+#   &st=
+#   &jt=
+#   &start=
+#   &limit=100
+#   &fromage=
+#   &filter=
+#   &latlong=1
+#   &co=jp
+#   &chnl=
+#   &userip=1.2.3.4&useragent=Mozilla/%2F4.0(Firefox)
+#   &v=2
+#   &format=json
+
+
+def analyze_most_common_words(job_summary):
+    '''
+        This function will read the job summary/description and analyze which 
+        are the most common words. It will return a dictionary in the form of 
+        { word:count, word2:count2, ... }
+    '''
+    # Ignore "stop words", (E.g. "the", "and", "no", "be", "that", etc.)
+    #print "\n-----JOB SUMMARY:-----\n",job_summary
+    print "10 most common words in job summary:"
+    print Counter(job_summary).most_common(10)
 
 
 def get_args(argv):
@@ -110,16 +175,24 @@ def get_args(argv):
     main(args.query, args.country_code, args.location)
 
 
-class _Settings(object):
+class _Settings():
     '''
-        I've named the class with a single leading underscore (just like the 
-        two instance attributes that underlie the read-only properties) to 
-        suggest that it's not meant to be used from "outside" the module -- 
-        only the settings object is supposed to be.
-        get properties as "settings.publisher_ID", etc
-        set properties like "settings = _Settings(<publisher_ID_value>, <etc>)"
-        https://stackoverflow.com/questions/3640700/alternative-to-passing-global-variables-around-to-classes-and-functions
+        This class is used to store the settings parsed from the config.json 
+        file.
+        To get the values, you need to create an instance of this class:
+        and then do whatever you want with that value, like:
+        "print new_setting_instance.publisher_ID"
+
+        To set the values (which should only happen once during the execution 
+        of the program) you have to call this class with all the parameters.
+        E.g.
+        _Settings(<API_URL>, <publisher_ID>, <output_format>, <limit>, 
+            <from_age>, <highlight>, <sort>, <radius>, <site_type>, <job_type>, 
+            <start>, <duplicate_filter>, <lat_long>, <channel>, <user_IP>, 
+            <user_agent>, <version>, <headers>)
     '''
+    @property
+    def API_URL(self): return self._API_URL
     @property
     def publisher_ID(self): return self._publisher_ID
     @property
@@ -152,9 +225,12 @@ class _Settings(object):
     def user_agent(self): return self._user_agent
     @property
     def version(self): return self._version
-    def __init__(self, publisher_ID, output_format, limit, from_age, 
+    @property
+    def headers(self): return self._headers
+    def __init__(self, API_URL, publisher_ID, output_format, limit, from_age, 
         highlight, sort, radius, site_type, job_type, start, duplicate_filter,
-        lat_long, channel, user_IP, user_agent, version):
+        lat_long, channel, user_IP, user_agent, version, headers):
+        self._API_URL = API_URL
         self._publisher_ID = publisher_ID
         self._output_format = output_format
         self._limit = limit
@@ -171,18 +247,22 @@ class _Settings(object):
         self._user_IP = user_IP
         self._user_agent = user_agent
         self._version = version
+        self._headers = headers
 
 
 def read_config():
     '''
         This function will read the configuration values from config.json
-        and assign the values to a "settings" object.
+        and assign the values to a "_Settings" object.
+        It will return that object, so you can do something like:
+        parsed_settings = read_config()
     '''
     try:
         config = json.load(open(config_file, "r+"))
 
         request_config = config["request"]
 
+        API_URL = request_config["API_URL"]
         publisher_ID = request_config["publisher_ID"]
         output_format = request_config["output_format"]
         limit = request_config["limit"]
@@ -199,88 +279,78 @@ def read_config():
         user_IP = request_config["user_IP"]
         user_agent = request_config["user_agent"]
         version = request_config["version"]
+        headers = request_config["headers"]
 
+        # Assign values to the _Settings class.
+        settings = _Settings(API_URL, publisher_ID, output_format, limit, 
+            from_age, highlight, sort, radius, site_type, job_type, start, 
+            duplicate_filter, lat_long, channel, user_IP, user_agent, version,
+            headers)
     except Exception as exception:
         log.error("Cannot read configuration file. {0}".format(exception))
         sys.exit(1)
+    else:
+        return settings
 
 
 def get_job_summary(url):
     '''
         This function will access the URL from each job result in the 
         api_response, and get the contents of the "job_summary" object 
-        in the DOM (i.e. the actual description text of the job).
+        in the DOM (i.e. the actual, long description text of the job).
     ''' 
     try:
-        response = requests.get(url, headers=headers)
+        #response = requests.get(url, headers=_Settings.headers)
+        response = requests.get(url)
         soup = BeautifulSoup(response.text,"html5lib")
         # Only 1 job summary per page, so we can use find instead of findAll
         job_summary = soup.find("span", attrs={"id" : "job_summary"})
-        print "-----JOB SUMMARY:-----\n",job_summary.text
     except Exception as error:
         log.error("Unable to get response from URL: {0} {1}".format(url, error))
-
-
-def save_result():
-    '''
-        This function will save new job results into the appropiate file/DB,
-        and it will NOT save any duplicates.
-    '''
-    # If there is not a directory for this <countryCode>_<query> combo, 
-    # create one.
-    results_dir = home_dir + country_code + query
-    results_file = os.path.join(results_dir, "results.json")
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
-    # If the results file does not exist, create it.
-    if not os.path.exists(results_file):
-        os.makedirs(results_file)
-    # if the results file does exists, open it.
-    # Open the results file so we can add new results.
-    #try:
-    #   results_file_handle = open(results_file, "r+")
-    #   results_file_handle.close() # Close file. 
-    #except Exception as exception:
-    #   print "ERROR: Unable to open", str(resultsFile), exception
-    #   sys.exit(1)
-    # Make sure we are not inserting a duplicate into the results file.
-    # Read all the jobkeys (Unique IDs) to avoid inserting duplicates.
-    # Close the appropiate results file.
+    else:
+        return job_summary.text
 
 
 def main(query, country_code, location):
+    '''
+        Main driver for the program logic.
+    '''
     # Arguments for the API call,
     # (refer to https://ads.indeed.com/jobroll/xmlfeed)
-    # TODO: Read all this from a config file.
-    read_config()
 
+    # Create an instance of the "Settings" class in order to access the values.
+    parsed_settings = read_config()
+
+    #print parsed_settings.API_URL
     # Concatenate the provided values to form the request URL.
-    # TODO: Change the string concatenation into a list,
-    # then concatenate the list items.
-    indeed_url = "http://api.indeed.com/ads/apisearch?"
-    indeed_url += "publisher=" + publisher_ID
-    indeed_url += "&q=" + query
-    if location:
-        indeed_url += "&l=" + location
-    indeed_url += "&sort=" + sort
-    indeed_url += "&radius=" + radius
-    indeed_url += "&st=" + site_type
-    indeed_url += "&jt=" + job_type
-    indeed_url += "&start=" + start
-    indeed_url += "&limit=" + limit
-    indeed_url += "&fromage=" + from_age
-    indeed_url += "&highlight=" + highlight
-    indeed_url += "&filter=" + duplicate_filter
-    indeed_url += "&latlong=" + lat_long
-    indeed_url += "&co=" + country_code
-    indeed_url += "&chnl=" + channel
-    indeed_url += "&userip=" + user_IP
-    indeed_url += "&useragent=" + user_agent
-    indeed_url += "&v=" + version
-    indeed_url += "&format=" + output_format
+    indeed_url = []
+    indeed_url.append(parsed_settings.API_URL)
+    indeed_url.append("publisher=" + parsed_settings.publisher_ID)
+    indeed_url.append("&q=" + query)
+    if location != None:
+        indeed_url.append("&l=" + location)
+    indeed_url.append("&sort=" + parsed_settings.sort)
+    indeed_url.append("&radius=" + parsed_settings.radius)
+    indeed_url.append("&st=" + parsed_settings.site_type)
+    indeed_url.append("&jt=" + parsed_settings.job_type)
+    indeed_url.append("&start=" + parsed_settings.start)
+    indeed_url.append("&limit=" + parsed_settings.limit)
+    indeed_url.append("&fromage=" + parsed_settings.from_age)
+    indeed_url.append("&highlight=" + parsed_settings.highlight)
+    indeed_url.append("&filter=" + parsed_settings.duplicate_filter)
+    indeed_url.append("&latlong=" + parsed_settings.lat_long)
+    indeed_url.append("&co=" + country_code)
+    indeed_url.append("&chnl=" + parsed_settings.channel)
+    indeed_url.append("&userip=" + parsed_settings.user_IP)
+    indeed_url.append("&useragent=" + parsed_settings.user_agent)
+    indeed_url.append("&v=" + parsed_settings.version)
+    indeed_url.append("&format=" + parsed_settings.output_format)
+
+    # Join everything to form a full URL.
+    full_indeed_url = "".join(indeed_url)
 
     try:
-        api_response = requests.get(indeed_url, headers=headers)
+        api_response = requests.get(full_indeed_url)
     except Exception as error:
         log.error("Unable to get response from API: {0}".format(error))
         sys.exit(1)
@@ -294,23 +364,25 @@ def main(query, country_code, location):
     try:
         readable_api_response = api_response.json()
     except ValueError:
-        log.warning("Empty result set. Request URL: {0}".format(indeed_url))
+        log.warning("Empty result set. Request URL: {0}\nException: "\
+            "{1}".format(full_indeed_url, ValueError))
         sys.exit(2)
 
     # Validate that there were job openings returned.
     try:
         api_results = readable_api_response["results"]
     except KeyError:
-        log.warning("No results found. Request URL: {0}".format(indeed_url))
+        log.warning("No results found. Request URL: {0}\Exception: "\
+            "{1}".format(full_indeed_url, KeyError))
         sys.exit(3)
 
     # Parse the response from the Indeed API.
     for job in api_results:
         job_title = job["jobtitle"]
-        get_job_summary(job["url"])
-        # Finally, save the results into the results file.
-        save_result()
-    sys.exit()
+        # Call the get_job_summary() function.
+        job_summary = get_job_summary(job["url"])
+        # Analyze the job postinig text.
+        analyze_most_common_words(job_summary)
 
 
 if __name__ == "__main__":
