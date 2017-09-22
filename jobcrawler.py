@@ -300,7 +300,6 @@ def get_job_summary(url):
         in the DOM (i.e. the actual, long description text of the job).
     ''' 
     try:
-        #response = requests.get(url, headers=_Settings.headers)
         response = requests.get(url)
         soup = BeautifulSoup(response.text,"html5lib")
         # Only 1 job summary per page, so we can use find instead of findAll
@@ -321,7 +320,6 @@ def main(query, country_code, location):
     # Create an instance of the "Settings" class in order to access the values.
     parsed_settings = read_config()
 
-    #print parsed_settings.API_URL
     # Concatenate the provided values to form the request URL.
     indeed_url = []
     indeed_url.append(parsed_settings.API_URL)
@@ -351,8 +349,8 @@ def main(query, country_code, location):
 
     try:
         api_response = requests.get(full_indeed_url)
-    except Exception as error:
-        log.error("Unable to get response from API: {0}".format(error))
+    except Exception as exception:
+        log.error("Unable to get response from API: {0}".format(exception))
         sys.exit(1)
 
     # The status code should be 200 (success). Catch anything else and handle.
@@ -363,17 +361,17 @@ def main(query, country_code, location):
     # Validate that we got a non-empty result set.
     try:
         readable_api_response = api_response.json()
-    except ValueError:
+    except ValueError as exception:
         log.warning("Empty result set. Request URL: {0}\nException: "\
-            "{1}".format(full_indeed_url, ValueError))
+            "{1}".format(full_indeed_url, exception))
         sys.exit(2)
 
     # Validate that there were job openings returned.
     try:
         api_results = readable_api_response["results"]
-    except KeyError:
+    except KeyError as exception:
         log.warning("No results found. Request URL: {0}\Exception: "\
-            "{1}".format(full_indeed_url, KeyError))
+            "{1}".format(full_indeed_url, exception))
         sys.exit(3)
 
     # Parse the response from the Indeed API.
@@ -387,3 +385,4 @@ def main(query, country_code, location):
 
 if __name__ == "__main__":
     get_args(sys.argv[1:])
+
