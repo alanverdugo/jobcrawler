@@ -5,8 +5,7 @@
     jobs postings.
     Once it finds anything, it will send a notification email to the
     specified recipients.
-    Also, it will save the data of the interesting job openings into a 
-    results file, which then could be analysed in search of patterns.
+    Also, it will analyse the data of the interesting job openings.
 
  Usage:
     python jobcrawler.py [-h] -q QUERY [-l LOCATION] -c COUNTRY_CODE
@@ -71,6 +70,12 @@ from bs4 import BeautifulSoup
 
 # For text analysis.
 from collections import Counter
+
+# To get punctuation.
+import string
+
+# For text analysis.
+import nltk
 
 
 home_dir = os.path.dirname(os.path.abspath(__file__))
@@ -148,10 +153,20 @@ def analyze_most_common_words(job_summary):
         are the most common words. It will return a dictionary in the form of 
         { word:count, word2:count2, ... }
     '''
-    # Ignore "stop words", (E.g. "the", "and", "no", "be", "that", etc.)
-    #print "\n-----JOB SUMMARY:-----\n",job_summary
+    # Remove punctuation and stopwords.
+    punctuation = list(string.punctuation)
+    stopwords = nltk.corpus.stopwords.words("english")
+    useless_words = stopwords + punctuation
+
+    # Divide the job summary into a list of words.
+    words = []
+    words = job_summary.split(" ")
+
+    # Remove useless words (good_words = words - useless words).
+    good_words = [word for word in words if word not in useless_words]
+
     print "10 most common words in job summary:"
-    print Counter(job_summary).most_common(10)
+    print Counter(good_words).most_common(10)
 
 
 def get_args(argv):
