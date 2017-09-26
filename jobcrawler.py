@@ -40,6 +40,8 @@
                             Added the analyze_most_common_words function.
                             Removed save_results.
                             Fixed the Settings class.
+    Alan        2017-09-26  We now send en email with all the jobs' data.
+                            Fixed some bugs.
 """
 
 import os
@@ -53,17 +55,11 @@ import logging
 # Custom module for email sending (refer to emailer.py)
 import emailer
 
-# For the actual email sending.
-import smtplib
-
 # To get the API call results.
 import requests
 
 # To get arguments from CLI.
 import argparse
-
-# Some email modules we will need.
-from email.mime.text import MIMEText
 
 # For getting data from HTML pages.
 from bs4 import BeautifulSoup
@@ -71,7 +67,7 @@ from bs4 import BeautifulSoup
 # For text analysis.
 from collections import Counter
 
-# To get punctuation.
+# To get punctuation sumbols (,.:;?!...).
 import string
 
 # For text analysis.
@@ -147,6 +143,22 @@ log.setLevel(logging.INFO)
 #   &format=json
 
 
+def get_technology_tags():
+    '''
+        This function will get a list of popular tags from the 
+        StackExchange/StackOverflow API. They will be compared to the most 
+        common words found in the job summaries in order to find the most 
+        popular technologies for that specific job search. Those technologies 
+        will be included in the final report for the user.
+    '''
+    # Get tags from StackExchange/StackOverflow.
+    pass
+    # Parse the API response.
+    pass
+    # Add the tags to a (very long) list and return it.
+    pass
+
+
 def analyze_most_common_words(job_summary):
     '''
         This function will read the job summary/description and analyze which 
@@ -166,7 +178,9 @@ def analyze_most_common_words(job_summary):
     good_words = [word for word in words if word not in useless_words]
 
     print "10 most common words in job summary:"
-    print Counter(good_words).most_common(10)
+    common_words = Counter(good_words).most_common(10)
+    print common_words
+    return common_words
 
 
 def get_args(argv):
@@ -382,20 +396,35 @@ def main(query, country_code, location):
         sys.exit(2)
 
     # Validate that there were job openings returned.
-    try:
-        api_results = readable_api_response["results"]
-    except KeyError as exception:
-        log.warning("No results found. Request URL: {0}\Exception: "\
-            "{1}".format(full_indeed_url, exception))
+    if readable_api_response["totalResults"] == 0:
+        log.warning("No results found for query: '{0}':".format(query))
         sys.exit(3)
+    else:
+        api_results = readable_api_response["results"]
 
-    # Parse the response from the Indeed API.
+    email_message = []
+    
+    # Parse the response from the Indeed.com API.
     for job in api_results:
         job_title = job["jobtitle"]
         # Call the get_job_summary() function.
         job_summary = get_job_summary(job["url"])
-        # Analyze the job postinig text.
-        analyze_most_common_words(job_summary)
+        # Analyze the job posting text.
+        common_words = analyze_most_common_words(job_summary)
+
+        # Once we found the most commond words, build an email message with 
+        # all the Job posting data.
+        email_subject = "Job found for '{0}'".format(query)
+        email_message.append("The most common words for this job are: "\
+            "\n{0}".format("\n".join(str(p) for p in common_words)))
+        email_message.append("Job title:\n" + job_title + "\n")
+        email_message.append("Job summary:\n" + job_summary + "\n")
+    str_email_message = "\n".join(email_message)
+
+    # Call the emailer.build function 
+    # (which will subsequently send the email)
+    emailer.build_email("jobcrawler", email_subject, 
+        "jobcrawler@kippel.net", str_email_message, None)
 
 
 if __name__ == "__main__":
