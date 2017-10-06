@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 """
  Description:
     This program will monitor the indeed.com API in search of interesting 
@@ -167,6 +168,7 @@ def analyze_most_common_words(job_summary):
     '''
     # Remove punctuation and stopwords.
     punctuation = list(string.punctuation)
+    #TODO: Use job["language"] to get stopwords accordingly.
     stopwords = nltk.corpus.stopwords.words("english")
     useless_words = stopwords + punctuation
 
@@ -177,10 +179,7 @@ def analyze_most_common_words(job_summary):
     # Remove useless words (good_words = words - useless words).
     good_words = [word for word in words if word not in useless_words]
 
-    print "10 most common words in job summary:"
-    common_words = Counter(good_words).most_common(10)
-    print common_words
-    return common_words
+    return Counter(good_words).most_common(10)
 
 
 def get_args(argv):
@@ -406,19 +405,27 @@ def main(query, country_code, location):
     
     # Parse the response from the Indeed.com API.
     for job in api_results:
-        job_title = job["jobtitle"]
+        job_url = job["url"]
         # Call the get_job_summary() function.
-        job_summary = get_job_summary(job["url"])
+        job_summary = get_job_summary(job_url)
         # Analyze the job posting text.
         common_words = analyze_most_common_words(job_summary)
 
         # Once we found the most commond words, build an email message with 
         # all the Job posting data.
-        email_subject = "Job found for '{0}'".format(query)
+        email_subject = "Jobs found for '{0}' in '{1}'".format(query, location)
+        email_message.append("Job title: {0}\n".format(job["jobtitle"]))
+        email_message.append("Company: {0}\n".format(job["company"].encode("utf-8")))
+        email_message.append("Posting date: {0}\n".format(job["date"]))
+        email_message.append("Link: {0}\n".format(job_url))
+        # TODO: Use job["longitude"] and job["latitude"] to build a heat 
+        # map of all the jobs
         email_message.append("The most common words for this job are: "\
-            "\n{0}".format("\n".join(str(p) for p in common_words)))
-        email_message.append("Job title:\n" + job_title + "\n")
-        email_message.append("Job summary:\n" + job_summary + "\n")
+            "\n{0}\n".format("\n".join(str(p).encode("utf-8") for p in common_words)))
+        email_message.append("Job summary:\n {0} "\
+            "\n".format(job_summary.encode("utf-8")))
+        #email_message.append("Job summary:\n" + job_summary + "\n")
+        email_message.append("-------------------------")
     str_email_message = "\n".join(email_message)
 
     # Call the emailer.build function 
