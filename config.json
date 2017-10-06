@@ -1,7 +1,7 @@
 {
     "request": {
         "API_URL": "http://api.indeed.com/ads/apisearch?",
-        "publisher_ID": "XXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "publisher_ID": "XXXXXXXXXXXXXXXXXXXXX",
         "output_format": "json",
         "limit": "10",
         "from_age": "",
@@ -18,5 +18,10 @@
         "user_agent": "Mozilla/%2F4.0(Firefox)",
         "version": "2",
         "headers": "{'content-type': 'application/json'}"
+    },
+    "mailgun": {
+        "API_URL": "https://api.mailgun.net/v3/XXXXXXXXXXXXX/messages",
+        "API_KEY": "XXXXXXXXXXXXXXXXXXXXXXX",
+        "FROM_ADDRESS": "Jobcrawler <jobcrawler@example.net>"
     }
 }

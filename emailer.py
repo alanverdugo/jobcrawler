@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
     Usage:
         import emailer
@@ -60,6 +61,8 @@
                                     build_email() and send_email().
                                     Added the ability to add attachments.
         2017-09-26  Alan Verdugo    Fixed some bugs. 
+        2017-10-03  Alan Verdugo    Switched entirely from MIME to using 
+                                    the mailgun.com service (much easier)
 '''
 
 # Needed for system and environment information.
@@ -84,6 +87,9 @@ import logging
 
 # Handling arguments.
 import argparse
+
+# To use the Mailgun API.
+import requests
 
 
 # The path where this script and the dist. list are.
@@ -139,21 +145,39 @@ def get_args(arguments):
         args.message_body, args.attachments)
 
 
-def send_email(email_from, email_to, message):
+def send_mailgun_email(API_URL, API_KEY, FROM, recipient_address, 
+    subject, message):
     '''
-        This function will (finally) attempt to deliver the email that was 
-        built by the rest of the process.
+        This function will use the mailgun.com service to send emails.
+        This is highly encouraged since it will prevent this server to be
+        regarded as a spam source by ESPs (Email Service Providers) sites 
+        like Gmail or Outlook.
+        https://documentation.mailgun.com/en/latest/user_manual.html
     '''
+    # Open and parse the configuration from the JSON file.
+    pass
+    # Finally, use the Mailgun API to send the email.
     try:
-        s = smtplib.SMTP(smtp_server)
-        s.sendmail(email_from, email_to, message)
-        s.quit()
+        response = requests.post(
+            API_URL,
+            auth=("api", API_KEY),
+            data={"from": FROM,
+                "to": recipient_address,
+                "subject": subject,
+                "text": message})
+            #files={"message": message})
+              #"text": message})
+        if response.status_code != 200:
+            raise Exception("Mailgun request code: {0}\n"\
+                "Reason: {1}".format(response.status_code, response.text))
     except Exception as exception:
-        log.error("Unable to send notification email. {0}".format(exception))
+        log.error("Unable to send notification email. Exception:"\
+            "\n{0}".format(exception))
         sys.exit(1)
     else:
-        log.info("Notification email sent to {0}".format(email_to))
-        exit(0)
+        for recipient in recipient_address:
+            log.info("Success! Notification email sent to "\
+            "{0}".format(recipient))
 
 
 def build_email(distribution_group, email_subject, email_from, results_message, 
@@ -169,53 +193,15 @@ def build_email(distribution_group, email_subject, email_from, results_message,
             if email_groups["name"] == distribution_group:
                 email_to = email_groups["members"]
         if email_to == None:
-            log.error("Unable to find Email recipients for group "\
+            raise Exception("Unable to find email recipients for group "\
                 "'{0}'").format(distribution_group)
     except Exception as exception:
-        log.error("Cannot read email recipients list. {0}".format(exception))
+        log.error("Unable to read email recipients list.\n"\
+            "Exception: {0}".format(exception))
         sys.exit(2)
-
-    # The whole email will consist of two parts: The text/body and the 
-    # attachments. We will need to "attach" the two parts to the message.
-    # I know this may be confusing.
-    msg = MIMEMultipart()
-    msg["Subject"] = email_subject
 
     # A list of filenames that could not be properly attached (if any).
     failed_attachments = []
-
-    # If any attachments were specified, open the file(s) and attach them to 
-    # the message.
-    if attachments != None:
-        for attachment in attachments:
-            try:
-                with open(attachment) as fp:
-                    part1 = MIMEBase("application", "octet-stream")
-                    part1.set_payload(fp.read())
-                # After the file is closed
-                part1.add_header("Content-Disposition", "attachment", 
-                    filename=os.path.basename(attachment))
-                msg.attach(part1)
-            except Exception as exception:
-                # If there is a problem while attaching a file, let's continue 
-                # with the remaining files (if any). Note: In this way, we may 
-                # end up sending the email without any attachments at all.
-                log.error("Unable to attach file {0}. Exception:"\
-                    " {1}".format(attachment, exception))
-                failed_attachments.append(attachment)
-
-    # Check if the email body is read from a file or it is just a simple text.
-    if results_message.startswith("@"):
-        body_file = results_message.split("@")[1]
-        # Try to open and read the contents of the file, which will be the 
-        # body of the email.
-        try:
-            with open(body_file) as fp:
-                results_message = fp.read()
-        except Exception as exception:
-            log.error("Unable to read file: {0} Exception: "\
-                "{1}".format(body_file, exception))
-            sys.exit(3)
 
     # If there were problem while attaching files, let's add a note to the 
     # email's body.
@@ -224,12 +210,19 @@ def build_email(distribution_group, email_subject, email_from, results_message,
             results_message = results_message + "\n\rThe file {0} was unable "\
             "to be attached to this email.".format(failed_attachment)
 
-    # The message MUST be encoded to support accents and other weird characters
-    part2 = MIMEText(results_message.encode('utf-8'), "plain")
-    msg.attach(part2)
+    # Get the Mailgun.com configuration from the JSON config file.
+    try:
+        config = json.load(open("config.json", "r+"))
+        MAILGUN_API_URL = config["mailgun"]["API_URL"]
+        MAILGUN_API_KEY = config["mailgun"]["API_KEY"]
+        MAILGUN_FROM_ADDRESS = config["mailgun"]["FROM_ADDRESS"]
+    except Exception as exception:
+        log.error("Cannot read Mailgun configuration. \n{0}".format(exception))
+        sys.exit(2)
 
     # Finally, attempt to send the email by calling the send_email function.
-    send_email(email_from, email_to, msg.as_string())
+    send_mailgun_email(MAILGUN_API_URL, MAILGUN_API_KEY, MAILGUN_FROM_ADDRESS, email_to,
+        email_subject, results_message)
 
 
 if __name__ == "__main__":
