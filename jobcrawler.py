@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
 """
  Description:
     This program will monitor the indeed.com API in search of interesting 
@@ -43,6 +42,11 @@
                             Fixed the Settings class.
     Alan        2017-09-26  We now send en email with all the jobs' data.
                             Fixed some bugs.
+    Alan        2017-12-17  Fixed some encoding issues (Note: The environment
+                            variable PYTHONIOENCODING needs to be "UTF-8").
+                            Fixed some displaying issues with the most common 
+                            words.
+                            Other minor improvements.
 """
 
 import os
@@ -68,7 +72,7 @@ from bs4 import BeautifulSoup
 # For text analysis.
 from collections import Counter
 
-# To get punctuation sumbols (,.:;?!...).
+# To get punctuation symbols (,.:;?!...).
 import string
 
 # For text analysis.
@@ -152,34 +156,13 @@ def get_technology_tags():
         popular technologies for that specific job search. Those technologies 
         will be included in the final report for the user.
     '''
+    # TODO: Complete this function. 
     # Get tags from StackExchange/StackOverflow.
     pass
     # Parse the API response.
     pass
     # Add the tags to a (very long) list and return it.
     pass
-
-
-def analyze_most_common_words(job_summary):
-    '''
-        This function will read the job summary/description and analyze which 
-        are the most common words. It will return a dictionary in the form of 
-        { word:count, word2:count2, ... }
-    '''
-    # Remove punctuation and stopwords.
-    punctuation = list(string.punctuation)
-    #TODO: Use job["language"] to get stopwords accordingly.
-    stopwords = nltk.corpus.stopwords.words("english")
-    useless_words = stopwords + punctuation
-
-    # Divide the job summary into a list of words.
-    words = []
-    words = job_summary.split(" ")
-
-    # Remove useless words (good_words = words - useless words).
-    good_words = [word for word in words if word not in useless_words]
-
-    return Counter(good_words).most_common(10)
 
 
 def get_args(argv):
@@ -255,9 +238,12 @@ class _Settings():
     def version(self): return self._version
     @property
     def headers(self): return self._headers
+    @property
+    def number_common_words(self): return self._number_common_words
     def __init__(self, API_URL, publisher_ID, output_format, limit, from_age, 
         highlight, sort, radius, site_type, job_type, start, duplicate_filter,
-        lat_long, channel, user_IP, user_agent, version, headers):
+        lat_long, channel, user_IP, user_agent, version, headers, 
+        number_common_words):
         self._API_URL = API_URL
         self._publisher_ID = publisher_ID
         self._output_format = output_format
@@ -276,6 +262,7 @@ class _Settings():
         self._user_agent = user_agent
         self._version = version
         self._headers = headers
+        self._number_common_words = number_common_words
 
 
 def read_config():
@@ -289,7 +276,6 @@ def read_config():
         config = json.load(open(config_file, "r+"))
 
         request_config = config["request"]
-
         API_URL = request_config["API_URL"]
         publisher_ID = request_config["publisher_ID"]
         output_format = request_config["output_format"]
@@ -309,16 +295,51 @@ def read_config():
         version = request_config["version"]
         headers = request_config["headers"]
 
+        number_common_words = config["number_common_words"]
+
         # Assign values to the _Settings class.
         settings = _Settings(API_URL, publisher_ID, output_format, limit, 
             from_age, highlight, sort, radius, site_type, job_type, start, 
             duplicate_filter, lat_long, channel, user_IP, user_agent, version,
-            headers)
+            headers, number_common_words)
     except Exception as exception:
         log.error("Cannot read configuration file. {0}".format(exception))
         sys.exit(1)
     else:
         return settings
+
+
+def analyze_most_common_words(job_summary):
+    '''
+        This function will read the job summary/description and analyze which 
+        are the most common words. It will return a dictionary in the form of 
+        { word:count, word2:count2, ... }
+    '''
+    parsed_settings = read_config()
+
+    # Remove punctuation and stopwords.
+    punctuation = list(string.punctuation)
+    #TODO: Use job["language"] to get stopwords accordingly.
+    stopwords = nltk.corpus.stopwords.words("english")
+    useless_words = stopwords + punctuation
+
+    #TODO: Fix punctuation that is not being removed correctly
+    # example: "development,"
+
+    # Divide the job summary into a list of words.
+    words = []
+    words = job_summary.split(" ")
+
+    # Remove useless words (good_words = words - useless words).
+    good_words = [word for word in words if word not in useless_words]
+
+    common_words = Counter(good_words)\
+        .most_common(int(parsed_settings.number_common_words))
+
+    list_common_words = []
+    for word, count in common_words:
+        list_common_words.append("{0} ({1} times)".format(word, count))
+    return list_common_words
 
 
 def get_job_summary(url):
@@ -409,22 +430,25 @@ def main(query, country_code, location):
         # Call the get_job_summary() function.
         job_summary = get_job_summary(job_url)
         # Analyze the job posting text.
-        common_words = analyze_most_common_words(job_summary)
+        list_common_words = analyze_most_common_words(job_summary)
 
         # Once we found the most commond words, build an email message with 
         # all the Job posting data.
         email_subject = "Jobs found for '{0}' in '{1}'".format(query, location)
-        email_message.append("Job title: {0}\n".format(job["jobtitle"]))
-        email_message.append("Company: {0}\n".format(job["company"].encode("utf-8")))
+        email_message.append("Job title: {0}\n".format(job["jobtitle"]\
+            .encode("utf-8")))
+        email_message.append("Company: {0}\n".format(job["company"]\
+            .encode("utf-8")))
         email_message.append("Posting date: {0}\n".format(job["date"]))
         email_message.append("Link: {0}\n".format(job_url))
         # TODO: Use job["longitude"] and job["latitude"] to build a heat 
         # map of all the jobs
-        email_message.append("The most common words for this job are: "\
-            "\n{0}\n".format("\n".join(str(p).encode("utf-8") for p in common_words)))
+        
+        email_message.append("The {0} most common words for this job are: "\
+            "\n{1}\n".format(parsed_settings.number_common_words, 
+            "\n".join(list_common_words)))
         email_message.append("Job summary:\n {0} "\
             "\n".format(job_summary.encode("utf-8")))
-        #email_message.append("Job summary:\n" + job_summary + "\n")
         email_message.append("-------------------------")
     str_email_message = "\n".join(email_message)
 
