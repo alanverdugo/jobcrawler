@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """
  Description:
-    This program will monitor the indeed.com API in search of interesting 
+    This program will monitor the indeed.com API in search of interesting
     jobs postings.
     Once it finds anything, it will send a notification email to the
     specified recipients.
@@ -14,7 +14,7 @@
     QUERY : The query to search in the API.
         E.g.:
             "software engineer"
-            "software engineer company:google"      
+            "software engineer company:google"
     LOCATION : The location for the job E.g.: "Austin, TX"
     COUNTRY_CODE : The country code. E.g.: us, mx, jp, gb, ca.
         Default: us
@@ -44,7 +44,7 @@
                             Fixed some bugs.
     Alan        2017-12-17  Fixed some encoding issues (Note: The environment
                             variable PYTHONIOENCODING needs to be "UTF-8").
-                            Fixed some displaying issues with the most common 
+                            Fixed some displaying issues with the most common
                             words.
                             Other minor improvements.
 """
@@ -57,36 +57,35 @@ import json
 
 import logging
 
-# Custom module for email sending (refer to emailer.py)
-import emailer
+# To get punctuation symbols (,.:;?!...).
+import string
 
-# To get the API call results.
-import requests
+# For text analysis.
+from collections import Counter
 
 # To get arguments from CLI.
 import argparse
+
+# To get the API call results.
+import requests
 
 # For getting data from HTML pages.
 from bs4 import BeautifulSoup
 
 # For text analysis.
-from collections import Counter
-
-# To get punctuation symbols (,.:;?!...).
-import string
-
-# For text analysis.
 import nltk
 
+# Custom module for email sending (refer to emailer.py)
+import emailer
 
-home_dir = os.path.dirname(os.path.abspath(__file__))
+HOME_DIR = os.path.dirname(os.path.abspath(__file__))
 
-config_file = os.path.join(home_dir, "config.json")
+CONFIG_FILE = os.path.join(HOME_DIR, "config.json")
 
 # Logging configuration.
-log = logging.getLogger("jobcrawler")
+LOG = logging.getLogger("jobcrawler")
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-log.setLevel(logging.INFO)
+LOG.setLevel(logging.INFO)
 
 
 ## Indeed.com API call examples:
@@ -149,101 +148,119 @@ log.setLevel(logging.INFO)
 
 
 def get_technology_tags():
-    '''
-        This function will get a list of popular tags from the 
-        StackExchange/StackOverflow API. They will be compared to the most 
-        common words found in the job summaries in order to find the most 
-        popular technologies for that specific job search. Those technologies 
+    """
+        Get a list of popular tags from the
+        StackExchange/StackOverflow API. They will be compared to the most
+        common words found in the job summaries in order to find the most
+        popular technologies for that specific job search. Those technologies
         will be included in the final report for the user.
-    '''
-    # TODO: Complete this function. 
+    """
+    # TODO: Complete this function.
     # Get tags from StackExchange/StackOverflow.
     pass
     # Parse the API response.
-    pass
+
     # Add the tags to a (very long) list and return it.
-    pass
 
 
-def get_args(argv):
-    '''
+def get_args():
+    """
         Parse and validate arguments.
-    '''
+    """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-q","--query", 
-        dest="query",
-        help="The query to search in the API",
-        required=True)
-    parser.add_argument("-l","--location", 
-        dest="location",
-        help="The location for the job E.g.: Austin, TX")
-    parser.add_argument("-c","--country", 
-        dest="country_code", 
-        help="The country code. E.g.: us, mx, jp, gb, ca.",
-        default="us",
-        required=True)
+    parser.add_argument("-q", "--query",
+                        dest="query",
+                        help="The query to search in the API",
+                        required=True)
+    parser.add_argument("-l", "--location",
+                        dest="location",
+                        help="The location for the job E.g.: Austin, TX")
+    parser.add_argument("-c", "--country",
+                        dest="country_code",
+                        help="The country code. E.g.: us, mx, jp, gb, ca.",
+                        default="us",
+                        required=True)
     args = parser.parse_args()
     main(args.query, args.country_code, args.location)
 
 
 class _Settings():
     '''
-        This class is used to store the settings parsed from the config.json 
+        This class is used to store the settings parsed from the config.json
         file.
         To get the values, you need to create an instance of this class:
         and then do whatever you want with that value, like:
         "print new_setting_instance.publisher_ID"
 
-        To set the values (which should only happen once during the execution 
+        To set the values (which should only happen once during the execution
         of the program) you have to call this class with all the parameters.
         E.g.
-        _Settings(<API_URL>, <publisher_ID>, <output_format>, <limit>, 
-            <from_age>, <highlight>, <sort>, <radius>, <site_type>, <job_type>, 
-            <start>, <duplicate_filter>, <lat_long>, <channel>, <user_IP>, 
+        _Settings(<API_URL>, <publisher_ID>, <output_format>, <limit>,
+            <from_age>, <highlight>, <sort>, <radius>, <site_type>, <job_type>,
+            <start>, <duplicate_filter>, <lat_long>, <channel>, <user_IP>,
             <user_agent>, <version>, <headers>)
     '''
     @property
-    def API_URL(self): return self._API_URL
+    def API_URL(self):
+        return self._API_URL
     @property
-    def publisher_ID(self): return self._publisher_ID
+    def publisher_ID(self):
+        return self._publisher_ID
     @property
-    def output_format(self): return self._output_format
+    def output_format(self):
+        return self._output_format
     @property
-    def limit(self): return self._limit
+    def limit(self):
+        return self._limit
     @property
-    def from_age(self): return self._from_age
+    def from_age(self):
+        return self._from_age
     @property
-    def highlight(self): return self._highlight
+    def highlight(self):
+        return self._highlight
     @property
-    def sort(self): return self._sort
+    def sort(self):
+        return self._sort
     @property
-    def radius(self): return self._radius
+    def radius(self):
+        return self._radius
     @property
-    def site_type(self): return self._site_type
+    def site_type(self):
+        return self._site_type
     @property
-    def job_type(self): return self._job_type
+    def job_type(self):
+        return self._job_type
     @property
-    def start(self): return self._start
+    def start(self):
+        return self._start
     @property
-    def duplicate_filter(self): return self._duplicate_filter
+    def duplicate_filter(self):
+        return self._duplicate_filter
     @property
-    def lat_long(self): return self._lat_long
+    def lat_long(self):
+        return self._lat_long
     @property
-    def channel(self): return self._channel
+    def channel(self):
+        return self._channel
     @property
-    def user_IP(self): return self._user_IP
+    def user_IP(self):
+        return self._user_IP
     @property
-    def user_agent(self): return self._user_agent
+    def user_agent(self):
+        return self._user_agent
     @property
-    def version(self): return self._version
+    def version(self):
+        return self._version
     @property
-    def headers(self): return self._headers
+    def headers(self):
+        return self._headers
     @property
-    def number_common_words(self): return self._number_common_words
-    def __init__(self, API_URL, publisher_ID, output_format, limit, from_age, 
-        highlight, sort, radius, site_type, job_type, start, duplicate_filter,
-        lat_long, channel, user_IP, user_agent, version, headers, 
-        number_common_words):
+    def number_common_words(self):
+        return self._number_common_words
+    def __init__(self, API_URL, publisher_ID, output_format, limit, from_age,
+                 highlight, sort, radius, site_type, job_type, start, duplicate_filter,
+                 lat_long, channel, user_IP, user_agent, version, headers,
+                 number_common_words):
         self._API_URL = API_URL
         self._publisher_ID = publisher_ID
         self._output_format = output_format
@@ -266,14 +283,15 @@ class _Settings():
 
 
 def read_config():
-    '''
-        This function will read the configuration values from config.json
-        and assign the values to a "_Settings" object.
+    """
+        Read the configuration values from config.json.
+
+        Also assign the values to a "_Settings" object.
         It will return that object, so you can do something like:
         parsed_settings = read_config()
-    '''
+    """
     try:
-        config = json.load(open(config_file, "r+"))
+        config = json.load(open(CONFIG_FILE, "r+"))
 
         request_config = config["request"]
         API_URL = request_config["API_URL"]
@@ -298,23 +316,23 @@ def read_config():
         number_common_words = config["number_common_words"]
 
         # Assign values to the _Settings class.
-        settings = _Settings(API_URL, publisher_ID, output_format, limit, 
-            from_age, highlight, sort, radius, site_type, job_type, start, 
-            duplicate_filter, lat_long, channel, user_IP, user_agent, version,
-            headers, number_common_words)
+        settings = _Settings(API_URL, publisher_ID, output_format, limit,
+                             from_age, highlight, sort, radius, site_type, job_type, start,
+                             duplicate_filter, lat_long, channel, user_IP, user_agent, version,
+                             headers, number_common_words)
     except Exception as exception:
-        log.error("Cannot read configuration file. {0}".format(exception))
+        LOG.error("Cannot read configuration file. %s", exception)
         sys.exit(1)
     else:
         return settings
 
 
 def analyze_most_common_words(job_summary):
-    '''
-        This function will read the job summary/description and analyze which 
-        are the most common words. It will return a dictionary in the form of 
+    """
+        Read the job summary/description and analyze which
+        are the most common words. It will return a dictionary in the form of
         { word:count, word2:count2, ... }
-    '''
+    """
     parsed_settings = read_config()
 
     # Remove punctuation and stopwords.
@@ -343,26 +361,26 @@ def analyze_most_common_words(job_summary):
 
 
 def get_job_summary(url):
-    '''
-        This function will access the URL from each job result in the 
-        api_response, and get the contents of the "job_summary" object 
+    """
+        Access the URL from each job result in the
+        api_response, and get the contents of the "job_summary" object
         in the DOM (i.e. the actual, long description text of the job).
-    ''' 
+    """
     try:
         response = requests.get(url)
-        soup = BeautifulSoup(response.text,"html5lib")
+        soup = BeautifulSoup(response.text, "html5lib")
         # Only 1 job summary per page, so we can use find instead of findAll
         job_summary = soup.find("span", attrs={"id" : "job_summary"})
     except Exception as error:
-        log.error("Unable to get response from URL: {0} {1}".format(url, error))
+        LOG.error("Unable to get response from URL: %s %s", url, error)
     else:
         return job_summary.text
 
 
 def main(query, country_code, location):
-    '''
+    """
         Main driver for the program logic.
-    '''
+    """
     # Arguments for the API call,
     # (refer to https://ads.indeed.com/jobroll/xmlfeed)
 
@@ -399,31 +417,31 @@ def main(query, country_code, location):
     try:
         api_response = requests.get(full_indeed_url)
     except Exception as exception:
-        log.error("Unable to get response from API: {0}".format(exception))
+        LOG.error("Unable to get response from API: %s", exception)
         sys.exit(1)
 
     # The status code should be 200 (success). Catch anything else and handle.
     if api_response.status_code != 200:
-        log.error("The response status is: {0}".format(response.status_code))
+        LOG.error("The response status is: %s", api_response.status_code)
         sys.exit(1)
 
     # Validate that we got a non-empty result set.
     try:
         readable_api_response = api_response.json()
     except ValueError as exception:
-        log.warning("Empty result set. Request URL: {0}\nException: "\
-            "{1}".format(full_indeed_url, exception))
+        LOG.warning("Empty result set. Request URL: %s\nException: "\
+                    "%s", full_indeed_url, exception)
         sys.exit(2)
 
     # Validate that there were job openings returned.
     if readable_api_response["totalResults"] == 0:
-        log.warning("No results found for query: '{0}':".format(query))
+        LOG.warning("No results found for query: '%s':", query)
         sys.exit(3)
     else:
         api_results = readable_api_response["results"]
 
     email_message = []
-    
+
     # Parse the response from the Indeed.com API.
     for job in api_results:
         job_url = job["url"]
@@ -432,7 +450,7 @@ def main(query, country_code, location):
         # Analyze the job posting text.
         list_common_words = analyze_most_common_words(job_summary)
 
-        # Once we found the most commond words, build an email message with 
+        # Once we found the most commond words, build an email message with
         # all the Job posting data.
         email_subject = "Jobs found for '{0}' in '{1}'".format(query, location)
         email_message.append("Job title: {0}\n".format(job["jobtitle"]\
@@ -441,21 +459,21 @@ def main(query, country_code, location):
             .encode("utf-8")))
         email_message.append("Posting date: {0}\n".format(job["date"]))
         email_message.append("Link: {0}\n".format(job_url))
-        # TODO: Use job["longitude"] and job["latitude"] to build a heat 
+        # TODO: Use job["longitude"] and job["latitude"] to build a heat
         # map of all the jobs
-        
+
         email_message.append("The {0} most common words for this job are: "\
-            "\n{1}\n".format(parsed_settings.number_common_words, 
-            "\n".join(list_common_words)))
+                             "\n{1}\n".format(parsed_settings.number_common_words,
+                                              "\n".join(list_common_words)))
         email_message.append("Job summary:\n {0} "\
-            "\n".format(job_summary.encode("utf-8")))
+                             "\n".format(job_summary.encode("utf-8")))
         email_message.append("-------------------------")
     str_email_message = "\n".join(email_message)
 
-    # Call the emailer.build function 
+    # Call the emailer.build function
     # (which will subsequently send the email)
-    emailer.build_email("jobcrawler", email_subject, 
-        "jobcrawler@kippel.net", str_email_message, None)
+    emailer.build_email("jobcrawler", email_subject,
+                        "jobcrawler@kippel.net", str_email_message, None)
 
 
 if __name__ == "__main__":
